@@ -1,6 +1,3 @@
-<?php 
-
-?>
 <!doctype html>
 <html lang="th">
 <head>
@@ -22,9 +19,9 @@
       </div>
     </div>
     <div class="nav-actions">
-      <a href="dashboard.php" class="btn ghost small">แดชบอร์ด</a>
+      <a href="dashboard.html" class="btn ghost small">แดชบอร์ด</a>
       <span id="userEmail" class="user-email"></span>
-      <a href="logout.php" class="btn ghost">ออกจากระบบ</a>
+      <a href="logout.html" class="btn ghost">ออกจากระบบ</a>
     </div>
   </nav>
 
@@ -42,7 +39,7 @@
       <p><b>อีเมล:</b> <span id="profEmail">-</span></p>
       <p><b>สิทธิ์:</b> <span id="profRole">-</span></p>
       <div style="height:10px"></div>
-      <a href="dashboard.php" class="btn">กลับหน้าหลัก</a>
+      <a href="dashboard.html" class="btn">กลับหน้าหลัก</a>
     </div>
 
     <!-- ✅ ข้อมูลร้านของฉัน (ใหม่) -->
@@ -58,8 +55,8 @@
         <p><b>ประเภทร้าน:</b> <span id="profStoreType">-</span></p>
         <p><b>คำอธิบาย:</b> <span id="profStoreDesc">-</span></p>
         <div style="height:10px"></div>
-        <a href="edit_store.php" class="btn">แก้ไขข้อมูลร้าน</a>
-        <a href="view_store.php" class="btn ghost">จัดการเมนู</a>
+        <a href="edit_store.html" class="btn">แก้ไขข้อมูลร้าน</a>
+        <a href="view_store.html" class="btn ghost">จัดการเมนู</a>
       </div>
     </div>
   </section>
