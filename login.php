@@ -1,5 +1,5 @@
 <?php
-
+// ถ้ามี session/check อะไรค่อยเพิ่มด้านบนได้
 ?>
 <!doctype html>
 <html lang="th">
@@ -18,7 +18,7 @@
       font-family: 'Kanit', system-ui, Arial;
       background: #f7f7f7;
       color: #222;
-      font-size: 18px;    /* อ่านง่าย ไม่ใหญ่เกินไป */
+      font-size: 18px;
       line-height: 1.6;
     }
 
@@ -37,12 +37,11 @@
       padding: 0 16px;
     }
 
-    /* ส่วนหัวหน้า */
     .hero { text-align: center; margin-bottom: 18px; }
     .hero h1 { margin: 0 0 6px; font-size: 28px; }
     .note { color: #6b7280; font-size: 16px; margin: 0; }
 
-    /* วางเลย์เอาต์ 2 คอลัมน์ (จอกว้าง) / 1 คอลัมน์ (จอเล็ก) */
+    /* layout 2 คอลัมน์ */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -52,7 +51,6 @@
       .grid-2 { grid-template-columns: 1fr; }
     }
 
-    /* การ์ด */
     .card {
       background: #fff;
       border: 1px solid #e5e7eb;
@@ -61,13 +59,11 @@
     }
     .card h3 { margin: 0 0 12px; font-size: 22px; }
 
-    /* ทำฟอร์มให้ “แคบพอดีตา” และอยู่กึ่งกลางในการ์ด */
     .narrow {
       max-width: 480px;
       margin: 0 auto;
     }
 
-    /* ฟิลด์ฟอร์ม */
     .field { margin-bottom: 12px; }
     label { display: block; font-size: 16px; color: #374151; margin-bottom: 6px; }
     input {
@@ -80,13 +76,11 @@
       color: #111;
     }
 
-    /* สองคอลัมน์เฉพาะในกรอบ narrow (รหัสผ่าน/ยืนยันรหัสผ่าน) */
     .row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
     }
     @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
 
-    /* ปุ่ม */
     .btn {
       display: inline-block;
       border: 1px solid #e5e7eb;
@@ -102,10 +96,9 @@
     .btn.success { background: #16a34a; color: #fff; border-color: #16a34a; }
     .btn.block { width: 100%; }
 
-    /* ระยะห่างเล็กน้อยก่อนปุ่ม */
     .spacer { height: 10px; }
 
-    /* ====== ปุ่มเลือกประเภทร้านแบบ pill ====== */
+    /* ประเภทร้านแบบ pill */
     .shoptype {
       display: flex; gap: 10px; flex-wrap: wrap;
     }
@@ -120,8 +113,8 @@
       cursor: pointer;
       user-select: none;
       font-weight: 600;
-      transition: transform .02s ease-in-out, box-shadow .2s, background .2s, border-color .2s;
       display: inline-flex; align-items: center; gap: 8px;
+      transition: transform .02s ease-in-out, box-shadow .2s, background .2s, border-color .2s;
     }
     .shoptype .pill:active { transform: scale(0.98); }
     .shoptype input[type="radio"]:checked + .pill {
@@ -129,17 +122,29 @@
       border-color: #6366f1;
       box-shadow: 0 0 0 2px rgba(99,102,241,.15) inset;
     }
-    /* ========================================= */
+
+    /* ซ่อน element (ใช้กับกล่อง OTP) */
+    .hidden { display: none; }
+
+    /* preview โลโก้ร้าน */
+    #regLogoPreview {
+      margin-top: 8px;
+      max-width: 120px;
+      max-height: 120px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      object-fit: cover;
+      display: none; /* เริ่มต้นซ่อน */
+    }
   </style>
 </head>
 
 <body data-page="login">
-  <!-- แถบหัว -->
+  <!-- แถบบน -->
   <div class="topbar">
     <div class="brand">🍜 ระบบร้านอาหารภายในชุมชน</div>
   </div>
 
-  <!-- เนื้อหา -->
   <div class="wrap">
     <div class="hero">
       <h1>เข้าใช้งาน / สมัครสมาชิก</h1>
@@ -147,27 +152,40 @@
     </div>
 
     <div class="grid-2">
-      <!-- เข้าสู่ระบบ -->
+      <!-- ========= เข้าสู่ระบบ ========= -->
       <div class="card">
         <div class="narrow">
           <h3>เข้าใช้งาน</h3>
 
+          <!-- เบอร์โทร + ปุ่มส่ง OTP -->
           <div class="field">
-            <label for="loginEmail">อีเมล</label>
-            <input id="loginEmail" type="email" placeholder="เช่น pla01@gmail.com" autocomplete="email" />
+            <label for="loginPhone">เบอร์โทรศัพท์</label>
+            <div style="display:flex; gap:8px;">
+              <input id="loginPhone" type="tel" placeholder="เช่น 0811234567" autocomplete="tel" />
+              <button id="btnSendLoginOtp" type="button" class="btn">
+                ส่งรหัส OTP
+              </button>
+            </div>
           </div>
 
-          <div class="field">
-            <label for="loginPassword">รหัสผ่าน</label>
-            <input id="loginPassword" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" />
+          <!-- ช่อง OTP (ซ่อนก่อน) -->
+          <div class="field hidden" id="loginOtpGroup">
+            <label for="loginOtp">รหัส OTP</label>
+            <input
+              id="loginOtp"
+              type="text"
+              placeholder="เช่น 123456"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+            />
           </div>
 
           <div class="spacer"></div>
-          <button id="btnLogin" class="btn primary block">เข้าสู่ระบบ</button>
+          <button id="btnLogin" class="btn primary block" type="button">เข้าสู่ระบบ</button>
         </div>
       </div>
 
-      <!-- สมัครสมาชิก -->
+      <!-- ========= สมัครสมาชิก ========= -->
       <div class="card">
         <div class="narrow">
           <h3>สมัครสมาชิก (สำหรับผู้ที่ยังไม่ได้เป็นสมาชิก)</h3>
@@ -177,65 +195,88 @@
             <input id="regName" type="text" placeholder="เช่น ป้าทอง (ร้านข้าวแกง)" autocomplete="name" />
           </div>
 
-          <div class="field">
-            <label for="regEmail">อีเมลสำหรับล็อกอิน</label>
-            <input id="regEmail" type="email" placeholder="เช่น owner@gmail.com" autocomplete="email" />
-          </div>
-
-          <!-- ✅ ประเภทร้าน -->
+          <!-- ประเภทร้าน -->
           <div class="field">
             <label>ประเภทร้าน</label>
             <div class="shoptype">
               <input type="radio" id="type-food" name="shopType" value="food" checked>
               <label for="type-food" class="pill">🍛 ร้านอาหาร</label>
+
               <input type="radio" id="type-drink" name="shopType" value="drink">
               <label for="type-drink" class="pill">🥤 ร้านเครื่องดื่ม</label>
-              <input type="radio" id="type-both" name="shopType" value="both">
-              <label for="type-both" class="pill">🍱 ร้านอาหารและเครื่องดื่ม</label>
             </div>
-          <div class="note">เลือกได้เพียง 1 ประเภท (แก้ไขได้ภายหลัง)</div>
+            <div class="note">เลือกได้เพียง 1 ประเภท (แก้ไขได้ภายหลัง)</div>
           </div>
-          <!-- /ประเภทร้าน -->
 
           <div class="field">
             <label for="regStoreName">ชื่อร้านของคุณ</label>
             <input id="regStoreName" type="text" placeholder="เช่น ร้านข้าวแกงป้าทอง" />
           </div>
 
+          <!-- โลโก้ร้าน + preview -->
           <div class="field">
             <label for="regStoreLogo">โลโก้ร้าน (ไม่บังคับ)</label>
             <input id="regStoreLogo" type="file" accept="image/*" />
             <div class="note">รองรับ JPG/PNG ≤ 2MB</div>
+            <!-- รูปตัวอย่าง -->
+            <img id="regLogoPreview" alt="ตัวอย่างโลโก้ร้าน" />
           </div>
-          
-          <div class="row">
-            <div class="field">
-              <label for="regPassword">ตั้งรหัสผ่าน</label>
-              <input id="regPassword" type="password" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="new-password" />
-            </div>
-            <div class="field">
-              <label for="regPassword2">ยืนยันรหัสผ่าน</label>
-              <input id="regPassword2" type="password" placeholder="พิมพ์รหัสผ่านซ้ำ" autocomplete="new-password" />
+
+          <!-- เบอร์ + ปุ่มส่ง OTP สมัครสมาชิก -->
+          <div class="field">
+            <label for="regPhone">เบอร์โทรศัพท์สำหรับล็อกอิน</label>
+            <div style="display:flex; gap:8px;">
+              <input id="regPhone" type="tel" placeholder="เช่น 0811234567" autocomplete="tel" />
+              <button id="btnSendRegOtp" type="button" class="btn">
+                ส่งรหัส OTP สำหรับสมัครสมาชิก
+              </button>
             </div>
           </div>
 
+          <!-- ช่อง OTP สมัครสมาชิก (ซ่อนก่อน) -->
+          <div class="field hidden" id="regOtpGroup">
+            <label for="regOtp">รหัส OTP</label>
+            <input
+              id="regOtp"
+              type="text"
+              placeholder="เช่น 123456"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+            />
+          </div>
+
           <div class="spacer"></div>
-          <button id="btnRegister" class="btn success block">สมัครสมาชิก</button>
+          <button id="btnRegister" class="btn success block" type="button">สมัครสมาชิก</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- สคริปต์เดิมของคุณ -->
+  <!-- ✅ สำคัญ: กล่อง reCAPTCHA สำหรับ Phone Auth -->
+  <div id="recaptcha-container" style="display:none;"></div>
+
   <script src="firebase-config.js"></script>
   <script type="module" src="app.js"></script>
 
-  <!-- (ไม่บังคับ) ตัวอย่างอ่านค่าไว้เทสเร็ว ๆ: ลบได้ถ้าใช้ใน app.js แล้ว -->
+  <!-- สคริปต์เล็ก ๆ สำหรับ preview โลโก้ที่เลือก -->
   <script>
-    // แค่ตัวอย่าง debug: กดสมัครแล้ว log shopType
-    document.getElementById('btnRegister')?.addEventListener('click', () => {
-      const shopType = document.querySelector('input[name="shopType"]:checked')?.value;
-      console.log('Selected shopType =', shopType); // 'food' หรือ 'drink'
+    document.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('regStoreLogo');
+      const preview   = document.getElementById('regLogoPreview');
+
+      if (!fileInput || !preview) return;
+
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) {
+          preview.style.display = 'none';
+          preview.src = '';
+          return;
+        }
+        const url = URL.createObjectURL(file);
+        preview.src = url;
+        preview.style.display = 'block';
+      });
     });
   </script>
 </body>

@@ -1,6 +1,5 @@
-<?php 
+<?php ?>
 
-?>
 <!doctype html>
 <html lang="th">
   <head>
@@ -19,7 +18,6 @@
         color: #222;
       }
 
-      /* =============== Navbar =============== */
       .nav {
         position: sticky; top: 0; z-index: 5;
         display: flex; justify-content: space-between; align-items: center;
@@ -30,26 +28,22 @@
       .brand-sub { font-size: 12px; color: #6b7280; }
       .muted { color: #6b7280; }
 
-      /* =============== Layout =============== */
       .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
       .hero { background: #fff; border-bottom: 1px solid #e5e7eb; }
       .hero .hero-content { max-width: 1100px; margin: 0 auto; padding: 16px; }
       .hero h1 { margin: 0 0 4px; }
 
-      /* Card */
       .card {
         background: #fff; border: 1px solid #e5e7eb;
         border-radius: 10px; padding: 14px;
       }
 
-      /* Badge */
       .badge {
         display: inline-block; padding: 8px 12px;
         border: 1px solid #e5e7eb; border-radius: 999px;
         background: #fff; font-weight: 700;
       }
 
-      /* =============== Table =============== */
       .tbl { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
 
       .tbl th {
@@ -70,9 +64,8 @@
       .tbl tr td:first-child { border-left: 1px solid #e5e7eb; border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
       .tbl tr td:last-child  { border-right: 1px solid #e5e7eb; border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
 
-      /* รูปภาพ */
       .col-img { width: 18%; }
-      .img-cell { display: flex; align-items: center; gap: 10px; }
+      .img-cell { display: flex; align-items: center; gap: 10px; justify-content: center; }
 
       .avatar {
         width: 84px; height: 84px; border-radius: 50%;
@@ -81,7 +74,6 @@
       }
       .avatar:hover { transform: scale(1.6); z-index: 3; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
 
-      /* ปุ่ม */
       .btn {
         display: inline-block; padding: 8px 12px;
         border-radius: 999px; border: 0; font-weight: 700;
@@ -102,14 +94,12 @@
 
       .hidden { display: none; }
 
-      /* คอลัมน์ปุ่มจัดการ */
       .tbl td:last-child {
         display: flex; gap: 10px; align-items: center; justify-content: center;
         flex-wrap: wrap;
       }
       .tbl td:last-child .btn { white-space: nowrap; }
 
-      /* =============== Responsive =============== */
       @media (max-width: 860px) {
         .tbl th:nth-child(2), .tbl td:nth-child(2) { display: none; }
         .col-img { width: 22%; }
@@ -120,7 +110,6 @@
   </head>
 
   <body data-page="dashboard">
-    <!-- Navbar -->
     <nav class="nav">
       <div class="brand">
         <div>🍜</div>
@@ -136,7 +125,6 @@
       </div>
     </nav>
 
-    <!-- Header -->
     <header class="hero">
       <div class="hero-content">
         <h1>หน้าหลัก</h1>
@@ -144,7 +132,6 @@
       </div>
     </header>
 
-    <!-- Content -->
     <section class="container">
       <div class="card">
         <table class="tbl">

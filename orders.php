@@ -11,7 +11,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* ใช้งานง่ายสำหรับผู้สูงอายุ */
     body{font-size:18px}
     .card{max-width:980px;margin:0 auto}
     .btn{font-size:18px;padding:12px 16px}

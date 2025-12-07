@@ -19,7 +19,7 @@
       </div>
     </div>
     <div class="nav-actions">
-      <a href="dashboard.php" class="btn ghost small">แดชบอร์ด</a>
+      <a href="dashboard.php" class="btn ghost small">หน้าหลัก</a>
       <span id="userEmail" class="user-email"></span>
       <a href="logout.php" class="btn ghost">ออกจากระบบ</a>
     </div>
@@ -36,10 +36,12 @@
     <div class="card">
       <h3>ข้อมูลโปรไฟล์</h3>
       <p><b>ชื่อผู้ใช้:</b> <span id="profName">-</span></p>
-      <p><b>อีเมล:</b> <span id="profEmail">-</span></p>
-      <p><b>สิทธิ์:</b> <span id="profRole">-</span></p>
+      <!-- 🔁 เปลี่ยนข้อความให้เป็นเบอร์โทร แต่ยังใช้ id="profEmail" เหมือนเดิม เพื่อให้ตรงกับ app.js -->
+      <p><b>เบอร์โทรศัพท์:</b> <span id="profEmail">-</span></p>
+      <p><b>สิทธิ์ / บทบาท:</b> <span id="profRole">-</span></p>
       <div style="height:10px"></div>
-      <a href="dashboard.html" class="btn">กลับหน้าหลัก</a>
+      <!-- 🔁 แก้ให้กลับไป dashboard.php -->
+      <a href="dashboard.php" class="btn">กลับหน้าหลัก</a>
     </div>
 
     <!-- ✅ ข้อมูลร้านของฉัน (ใหม่) -->
