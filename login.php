@@ -1,5 +1,4 @@
 <?php
-// ถ้ามี session/check อะไรค่อยเพิ่มด้านบนได้
 ?>
 <!doctype html>
 <html lang="th">
@@ -197,16 +196,19 @@
 
           <!-- ประเภทร้าน -->
           <div class="field">
-            <label>ประเภทร้าน</label>
-            <div class="shoptype">
-              <input type="radio" id="type-food" name="shopType" value="food" checked>
-              <label for="type-food" class="pill">🍛 ร้านอาหาร</label>
+  <label>ประเภทร้าน</label>
 
-              <input type="radio" id="type-drink" name="shopType" value="drink">
-              <label for="type-drink" class="pill">🥤 ร้านเครื่องดื่ม</label>
-            </div>
-            <div class="note">เลือกได้เพียง 1 ประเภท (แก้ไขได้ภายหลัง)</div>
-          </div>
+  <label class="shop-type-option">
+    <input type="radio" name="shopType" value="food" checked>
+    <span>🍛 ร้านอาหาร</span>
+  </label>
+
+  <label class="shop-type-option">
+    <input type="radio" name="shopType" value="drink">
+    <span>🥤 ร้านเครื่องดื่ม</span>
+  </label>
+</div>
+
 
           <div class="field">
             <label for="regStoreName">ชื่อร้านของคุณ</label>

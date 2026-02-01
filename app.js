@@ -44,12 +44,12 @@ const page = document.body.dataset.page || "";
 const userEmailEl = document.getElementById("userEmail");
 const go = (url) => (window.location.href = url);
 const toast = (m) => alert(m);
+let skipAuthRedirect = false;
 
 /* ----------------------------------------------------
    Helpers
 ---------------------------------------------------- */
 
-// แปลงเบอร์ (เช่น 0987654321) -> E.164 (+66987654321)
 function normalizeThaiPhone(phone) {
   const digits = (phone || "").replace(/\D/g, "");
   if (!digits) return null;
@@ -77,13 +77,15 @@ let regConfirmation = null;
 
 // อ่านค่าประเภทร้านจากหน้า register และแปลงเป็น label ภาษาไทย
 function selectedShopType() {
-  return (
-    document.querySelector('input[name="shopType"]:checked')?.value || "food"
-  );
+  const el = document.querySelector('input[name="shopType"]:checked');
+  if (!el) {
+    throw new Error("กรุณาเลือกประเภทร้านก่อนสมัครสมาชิก");
+  }
+  return el.value; // ได้ "food" หรือ "drink"
 }
+
 function shopTypeToLabel(v) {
   if (v === "drink") return "ร้านเครื่องดื่ม";
-  if (v === "both") return "ร้านอาหารและเครื่องดื่ม";
   return "ร้านอาหาร";
 }
 
@@ -160,6 +162,7 @@ async function kickIfBanned(user) {
 }
 
 onAuthStateChanged(auth, async (user) => {
+  if (skipAuthRedirect) return;
   const page = document.body.dataset.page; // เช่น 'login' หรือ 'dashboard'
 
   // แสดงเบอร์โทร (ถ้ามี) ที่มุมขวาบน
@@ -175,10 +178,12 @@ onAuthStateChanged(auth, async (user) => {
 
   /* ================== LOGIN PAGE (PHONE AUTH) ================== */
   if (page === "login") {
-    if (user) {
+    // ⛔ ระหว่างสมัคร ห้าม redirect
+    if (user && !skipAuthRedirect) {
       go("dashboard.php");
       return;
     }
+
 
     const $ = (id) => document.getElementById(id);
     const els = {
@@ -295,7 +300,8 @@ onAuthStateChanged(auth, async (user) => {
         const storeName = (els.regStoreName?.value || "").trim();
         const storeLogoFile = els.regStoreLogo?.files?.[0] || null;
 
-        const shopType = selectedShopType(); // 'food' | 'drink' | 'both'
+        const shopType = selectedShopType();
+        console.log("DEBUG: shopType from radio =", shopType);
         const categoryLabel = shopTypeToLabel(shopType);
 
         if (!name || !phoneE164) {
@@ -316,9 +322,13 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         // ยืนยัน OTP -> ได้ user
+        // 🔒 ล็อก redirect ชั่วคราว
+        skipAuthRedirect = true;
+
         const cred = await regConfirmation.confirm(code);
         regConfirmation = null;
         const newUser = cred.user;
+
 
         // ตั้งชื่อ displayName
         if (newUser.displayName !== name) {
@@ -338,7 +348,10 @@ onAuthStateChanged(auth, async (user) => {
           { merge: true }
         );
 
-        // หา/สร้างร้านของคนนี้
+        // ================== CREATE STORE (บังคับสร้าง) ==================
+        let storeRef;
+
+        // เช็กว่ามีร้านอยู่แล้วไหม
         const existed = await getDocs(
           query(
             collection(db, "stores"),
@@ -347,9 +360,8 @@ onAuthStateChanged(auth, async (user) => {
           )
         );
 
-        let storeRef;
         if (existed.empty) {
-          // ✅ ยังไม่มีร้าน -> สร้างใหม่
+          // ❗ ยังไม่มีร้าน → ต้องสร้างทันที
           storeRef = await addDoc(collection(db, "stores"), {
             name: storeName || `${name} - ร้านของฉัน`,
             description: "",
@@ -357,26 +369,21 @@ onAuthStateChanged(auth, async (user) => {
             shopType,
             imageUrl: null,
             ownerUid: newUser.uid,
+
+            // ⭐⭐ สำคัญมาก
+            approvalStatus: "pending",
+            approvedAt: null,
+            approvedBy: null,
+
             isBanned: false,
             createdAt: serverTimestamp(),
           });
         } else {
-          // ✅ มีร้านอยู่แล้ว -> อัปเดตประเภทให้ตรงกับที่เลือกล่าสุดเสมอ
-          const docSnap = existed.docs[0];
-          storeRef = docSnap.ref;
-
-          const updateData = {
-            shopType,
-            category: categoryLabel,
-          };
-          if (storeName) {
-            updateData.name = storeName;
-          }
-
-          await updateDoc(storeRef, updateData);
+          // มีร้านอยู่แล้ว (กันสมัครซ้ำ)
+          storeRef = existed.docs[0].ref;
         }
 
-        // ผูก storeId กลับไปที่ users เสมอ (กันกรณีเคยหาย)
+        // ⭐⭐ ผูก storeId กลับไปที่ users (ห้ามลืม)
         await updateDoc(doc(db, "users", newUser.uid), {
           storeId: storeRef.id,
         });
@@ -391,7 +398,13 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         toast("สมัครและสร้างร้านสำเร็จ");
+
+        // ⭐ ปลดล็อก redirect หลังสมัครเสร็จ
+        skipAuthRedirect = false;
+
+        // ⭐ ค่อยพาไปหน้า dashboard
         go("dashboard.php");
+
       } catch (e) {
         console.error(e);
         toast("สมัครสมาชิกไม่สำเร็จ: " + e.message);
@@ -411,8 +424,6 @@ onAuthStateChanged(auth, async (user) => {
 
   /* ================== AFTER LOGIN ================== */
   await ensureUserDoc(user);
-
-  // 🔥 เปลี่ยนจากเช็ค email เป็นเช็คเบอร์ 0985505984 (ในรูปแบบ E.164 = +66985505984)
   try {
     const ADMIN_PHONE = "+66985505984";
     const userPhoneNorm = normalizeThaiPhone(user.phoneNumber || "");
@@ -479,44 +490,63 @@ onAuthStateChanged(auth, async (user) => {
       const imgCell = `
         <div class="img-cell">
           <img class="avatar" src="${d.imageUrl || PLACEHOLDER}" alt="${d.name || ""}">
-          ${
-            canManage
-              ? `
+          ${canManage
+          ? `
             <button class="btn tiny change-photo" data-id="${id}">เปลี่ยนรูป</button>
             <input type="file" accept="image/*" class="hidden file-logo" data-id="${id}">
           `
-              : ""
-          }
+          : ""
+        }
         </div>
       `;
 
+      // ปุ่มอนุมัติ (เฉพาะแอดมิน และเฉพาะร้านที่ยังไม่ approved)
+      const approveBtn =
+        d.approvalStatus !== "approved"
+          ? `<button class="btn approve"
+         data-act="approve"
+         data-id="${id}">
+         อนุมัติร้าน
+       </button>`
+          : "";
+
+
+      // คอลัมน์จัดการ
       const manageCol = isSuper
-        ? `<button class="btn ${
-            d.isBanned ? "unban" : "ban"
-          }" data-act="toggleBan" data-id="${id}" data-banned="${
-            d.isBanned ? 1 : 0
-          }">
-             ${d.isBanned ? "ปลดแบน" : "แบนร้าน"}
-           </button>`
-        : `<button class="btn edit" ${
-            canManage ? "" : "disabled"
-          } data-act="edit">แก้ไขร้าน</button>
-           <button class="btn menu" ${
-             canManage ? "" : "disabled"
-           } data-act="menu">เพิ่มเมนู</button>
-           <button class="btn orders" ${
-             canManage ? "" : "disabled"
-           } data-act="orders">ดูคำสั่งซื้อ</button>`;
+        ? `
+     ${approveBtn}
+     <button class="btn ${d.isBanned ? "unban" : "ban"
+        }"
+     data-act="toggleBan"
+     data-id="${id}"
+     data-banned="${d.isBanned ? 1 : 0}">
+     ${d.isBanned ? "ปลดแบน" : "แบนร้าน"}
+     </button>
+    `
+        : `
+     <button class="btn edit"
+       ${canManage ? "" : "disabled"}
+       data-act="edit">แก้ไขร้าน</button>
+
+     <button class="btn menu"
+       ${canManage ? "" : "disabled"}
+       data-act="menu">เพิ่มเมนู</button>
+
+     <button class="btn orders"
+       ${canManage ? "" : "disabled"}
+       data-act="orders">ดูคำสั่งซื้อ</button>
+    `;
 
       return `
-        <tr data-id="${id}">
-          <td>${d.name || "-"}</td>
-          <td>${cat}</td>
-          <td>${imgCell}</td>
-          <td>${when}</td>
-          <td>${manageCol}</td>
-        </tr>`;
-    };
+  <tr data-id="${id}">
+    <td>${d.name || "-"}</td>
+    <td>${cat}</td>
+    <td>${imgCell}</td>
+    <td>${when}</td>
+    <td>${manageCol}</td>
+  </tr>
+`};
+
 
     try {
       // ---------- มุมมองแอดมินใหญ่ ----------
@@ -543,17 +573,40 @@ onAuthStateChanged(auth, async (user) => {
 
         // แบน/ปลดแบน
         tbody.addEventListener("click", async (e) => {
-          const btn = e.target.closest('[data-act="toggleBan"]');
-          if (!btn) return;
+
+          /* ===== อนุมัติร้าน ===== */
+          const approveBtn = e.target.closest('[data-act="approve"]');
+          if (approveBtn) {
+            try {
+              await updateDoc(doc(db, "stores", approveBtn.dataset.id), {
+                approvalStatus: "approved",
+                approvedAt: serverTimestamp(),
+                approvedBy: auth.currentUser.uid,
+              });
+              toast("อนุมัติร้านเรียบร้อย");
+            } catch (err) {
+              toast("อนุมัติไม่สำเร็จ: " + err.message);
+            }
+            return; // ⛔ สำคัญมาก
+          }
+
+          /* ===== แบน / ปลดแบน ===== */
+          const banBtn = e.target.closest('[data-act="toggleBan"]');
+          if (!banBtn) return;
+
           try {
-            const id = btn.dataset.id;
-            const banned = btn.dataset.banned === "1";
-            await updateDoc(doc(db, "stores", id), { isBanned: !banned });
+            const id = banBtn.dataset.id;
+            const banned = banBtn.dataset.banned === "1";
+
+            await updateDoc(doc(db, "stores", id), {
+              isBanned: !banned,
+            });
+
+            toast(banned ? "ปลดแบนร้านแล้ว" : "แบนร้านเรียบร้อย");
           } catch (err) {
-            toast("อัปเดตสถานะไม่สำเร็จ: " + err.message);
+            toast("อัปเดตสถานะแบนไม่สำเร็จ: " + err.message);
           }
         });
-
         // ---------- มุมมองเจ้าของร้าน ----------
       } else {
         // หา/สร้างร้านของ owner (ไม่ orderBy/ไม่ต้องทำ index)
@@ -565,39 +618,34 @@ onAuthStateChanged(auth, async (user) => {
         let snap = await getDocs(qy);
 
         if (snap.empty) {
-          const base =
-            (auth.currentUser.displayName &&
-              auth.currentUser.displayName.trim()) ||
-            auth.currentUser.phoneNumber ||
-            (auth.currentUser.email &&
-              auth.currentUser.email.split("@")[0]) ||
-            "ร้านของฉัน";
+          roleBadge.textContent = "⏳ ร้านของคุณกำลังรอการตรวจสอบ";
 
-          const pref = me?.preferredShopType || "food";
-          const categoryLabel = shopTypeToLabelLocal(pref);
-
-          const ref = await addDoc(collection(db, "stores"), {
-            name: base,
-            description: "",
-            category: categoryLabel, // เก็บ label ไทย
-            shopType: pref, // เก็บค่าดิบ
-            imageUrl: null,
-            ownerUid: auth.currentUser.uid,
-            isBanned: false,
-            createdAt: serverTimestamp(),
-          });
-          await updateDoc(doc(db, "users", auth.currentUser.uid), {
-            storeId: ref.id,
-          });
-
-          // โหลดใหม่
-          snap = await getDocs(qy);
+          tbody.innerHTML = `
+           <tr>
+              <td colspan="5" class="muted" style="text-align:center">
+              ร้านของคุณอยู่ระหว่างการตรวจสอบจากแอดมินใหญ่<br>
+              เมื่อได้รับการอนุมัติ ร้านจะแสดงในหน้านี้
+              </td>
+          </tr>
+        `;
+          return;
         }
+
 
         // เอกสารร้าน
         const storeDoc = snap.docs[0];
         const d = storeDoc.data();
         d.imageUrl = (await resolveImageUrl(d.imageUrl)) || PLACEHOLDER;
+
+        /* ===== PATCH ร้านเก่า (ยังไม่มี approvalStatus) ===== */
+        if (!("approvalStatus" in d)) {
+          await updateDoc(storeDoc.ref, {
+            approvalStatus: "pending",
+          });
+          d.approvalStatus = "pending";
+        }
+
+
 
         // PATCH: ถ้าร้านเก่ายังไม่มี shopType ให้เติมให้สอดคล้องกับ preferred
         if (!d.shopType) {
@@ -617,11 +665,26 @@ onAuthStateChanged(auth, async (user) => {
           d.category ||
           shopTypeToLabelLocal(d.shopType || me?.preferredShopType || "food");
 
-        roleBadge.textContent = `คุณคือ: แอดมินร้าน (${catLabel}, ร้าน: ${
-          d.name || "ร้านของฉัน"
-        })`;
+        roleBadge.textContent = `คุณคือ: แอดมินร้าน (${catLabel}, ร้าน: ${d.name || "ร้านของฉัน"
+          })`;
 
-        tbody.innerHTML = rowHtml(storeDoc.id, d, { canManage: true });
+        const canManage =
+          !d.isBanned && d.approvalStatus === "approved";
+
+        if (d.approvalStatus !== "approved") {
+          tbody.innerHTML = `
+    <tr>
+      <td colspan="5" class="muted" style="text-align:center">
+        ⏳ ร้านของคุณกำลังรอการตรวจสอบจากแอดมิน
+      </td>
+    </tr>
+  `;
+        } else {
+          const canManage = !d.isBanned;
+          tbody.innerHTML = rowHtml(storeDoc.id, d, { canManage });
+        }
+
+
 
         // ไปหน้าอื่น
         tbody.addEventListener("click", (e) => {
@@ -679,9 +742,8 @@ onAuthStateChanged(auth, async (user) => {
     } catch (err) {
       console.error("Dashboard error:", err);
       if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="5" class="muted">โหลดข้อมูลไม่สำเร็จ: ${
-          err?.message || err
-        }</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="muted">โหลดข้อมูลไม่สำเร็จ: ${err?.message || err
+          }</td></tr>`;
       }
       if (roleBadge) roleBadge.textContent =
         "เกิดข้อผิดพลาดในการโหลดข้อมูล";
@@ -725,6 +787,12 @@ onAuthStateChanged(auth, async (user) => {
               imageUrl: null,
               shopType: pref,
               ownerUid: user.uid,
+
+              // 🔴 สำคัญมาก
+              approvalStatus: "pending",
+              approvedAt: null,
+              approvedBy: null,
+
               isBanned: false,
               createdAt: serverTimestamp(),
             });
@@ -808,17 +876,22 @@ onAuthStateChanged(auth, async (user) => {
         limit(1)
       );
       const snap = await getDocs(qy);
+
       if (snap.empty) {
         const n = document.getElementById("noStore");
         if (n) n.style.display = "block";
         return;
       }
+
       const storeDoc = snap.docs[0];
       const storeId = storeDoc.id;
 
       const menusGrid = document.getElementById("menusGrid");
       const storeHeader = document.getElementById("storeHeader");
       const bannedAlert = document.getElementById("bannedAlert");
+      const pendingAlert = document.getElementById("pendingAlert");
+      const menuForm = document.getElementById("menuForm");
+
       const btnAddMenu = document.getElementById("btnAddMenu");
       const nameEl = document.getElementById("menuName");
       const priceEl = document.getElementById("menuPrice");
@@ -835,186 +908,200 @@ onAuthStateChanged(auth, async (user) => {
 
       let editingMenuId = null;
 
+      /* ====== สถานะร้าน ====== */
       onSnapshot(doc(db, "stores", storeId), (ds) => {
         const d = ds.data();
-        if (storeHeader)
+
+        if (storeHeader) {
           storeHeader.innerHTML = `
           <div class="store-header">
             <div>
               <h3>${d.name || "ร้านของฉัน"}</h3>
               <div class="muted">${d.description || ""}</div>
             </div>
-            <div class="pill ${d.isBanned ? "ban" : "ok"}">${
-          d.isBanned ? "ถูกแบน" : "ปกติ"
-        }</div>
-          </div>`;
-        if (bannedAlert)
-          bannedAlert.style.display = d.isBanned ? "block" : "none";
-        if (btnAddMenu) btnAddMenu.disabled = !!d.isBanned;
+            <div class="pill ${d.isBanned ? "ban" : "ok"}">
+              ${d.isBanned ? "ถูกแบน" : "ปกติ"}
+            </div>
+          </div>
+        `;
+        }
+
+        // reset
+        if (bannedAlert) bannedAlert.style.display = "none";
+        if (pendingAlert) pendingAlert.style.display = "none";
+        if (menuForm) menuForm.classList.remove("disabled-area");
+        if (btnAddMenu) btnAddMenu.disabled = false;
+
+        // 🚫 ถูกแบน
+        if (d.isBanned) {
+          if (bannedAlert) bannedAlert.style.display = "block";
+          if (menuForm) menuForm.classList.add("disabled-area");
+          if (btnAddMenu) btnAddMenu.disabled = true;
+          return;
+        }
+
+        // ⏳ ยังไม่อนุมัติ
+        if (d.approvalStatus !== "approved") {
+          if (pendingAlert) pendingAlert.style.display = "block";
+          if (menuForm) menuForm.classList.add("disabled-area");
+          if (btnAddMenu) btnAddMenu.disabled = true;
+          return;
+        }
       });
 
+      /* ====== โหลดเมนู ====== */
       const mq = query(
         collection(db, "stores", storeId, "menus"),
         orderBy("createdAt", "desc")
       );
+
       onSnapshot(mq, async (msnap) => {
         if (!menusGrid) return;
+
         menusGrid.innerHTML = "";
+
         if (msnap.empty) {
           menusGrid.innerHTML = '<div class="muted">ยังไม่มีเมนู</div>';
           return;
         }
+
         const cards = await Promise.all(
           msnap.docs.map(async (m) => {
             const d = m.data();
             const imgUrl = (await resolveImageUrl(d.imageUrl)) || "";
+
             return `
             <div class="card" data-id="${m.id}">
-              ${imgUrl ? `<img class="menu-img" src="${imgUrl}" alt="">` : ""}
+              ${imgUrl ? `<img class="menu-img" src="${imgUrl}">` : ""}
               <div class="menu-title" style="margin-top:8px">${d.name}</div>
-              <div class="menu-price">${Number(
-                d.price || 0
-              ).toLocaleString()} บาท</div>
+              <div class="menu-price">${Number(d.price || 0).toLocaleString()} บาท</div>
               <div style="height:8px"></div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <div style="display:flex; gap:8px;">
                 <button class="btn small" data-edit="${m.id}">แก้ไข</button>
                 <button class="btn danger small" data-del="${m.id}">ลบ</button>
               </div>
-            </div>`;
+            </div>
+          `;
           })
         );
+
         menusGrid.innerHTML = cards.join("");
       });
 
+      /* ====== เพิ่มเมนู ====== */
       if (btnAddMenu)
         btnAddMenu.onclick = async () => {
+          if (btnAddMenu.disabled) {
+            toast("ร้านยังไม่ผ่านการอนุมัติ");
+            return;
+          }
+
           try {
-            const name = (nameEl?.value || "").trim();
-            const price = Number(priceEl?.value || 0);
-            const urlFromInput = (imgUrlEl?.value || "").trim();
-            const file = imgFileEl?.files?.[0] || null;
+            const name = nameEl.value.trim();
+            const price = Number(priceEl.value || 0);
+            const url = imgUrlEl.value.trim();
+            const file = imgFileEl.files?.[0] || null;
 
             if (!name) return toast("กรุณากรอกชื่อเมนู");
-            if (Number.isNaN(price) || price < 0)
-              return toast("กรุณากรอกราคาเป็นตัวเลข");
-            if (file && file.size > 3 * 1024 * 1024)
-              return toast("ไฟล์รูปใหญ่เกิน 3MB");
+            if (price < 0) return toast("ราคาผิดพลาด");
 
-            const newRef = await addDoc(
+            const ref = await addDoc(
               collection(db, "stores", storeId, "menus"),
-              {
-                name,
-                price,
-                imageUrl: urlFromInput || null,
-                createdAt: serverTimestamp(),
-              }
+              { name, price, imageUrl: url || null, createdAt: serverTimestamp() }
             );
 
             if (file) {
-              const path = `stores/${storeId}/menus/${newRef.id}/img_${Date.now()}_${file.name}`;
+              const path = `stores/${storeId}/menus/${ref.id}/${Date.now()}_${file.name}`;
               const r = sRef(storage, path);
               await uploadBytes(r, file);
-              const httpsUrl = await getDownloadURL(r);
-              await updateDoc(newRef, { imageUrl: httpsUrl });
+              const img = await getDownloadURL(r);
+              await updateDoc(ref, { imageUrl: img });
             }
 
-            if (nameEl) nameEl.value = "";
-            if (priceEl) priceEl.value = "";
-            if (imgUrlEl) imgUrlEl.value = "";
-            if (imgFileEl) imgFileEl.value = "";
+            nameEl.value = "";
+            priceEl.value = "";
+            imgUrlEl.value = "";
+            imgFileEl.value = "";
+
             toast("เพิ่มเมนูแล้ว");
           } catch (e) {
-            console.error(e);
             toast("เพิ่มเมนูไม่สำเร็จ: " + e.message);
           }
         };
 
+      /* ====== แก้ไข / ลบ ====== */
       menusGrid.addEventListener("click", async (e) => {
-        const btnEdit = e.target.closest("[data-edit]");
+        if (btnAddMenu.disabled) {
+          toast("ร้านยังไม่ผ่านการอนุมัติ");
+          return;
+        }
+
         const btnDel = e.target.closest("[data-del]");
+        const btnEdit = e.target.closest("[data-edit]");
 
         if (btnDel) {
-          const id = btnDel.getAttribute("data-del");
           if (!confirm("ลบเมนูนี้?")) return;
-          try {
-            await deleteDoc(doc(db, "stores", storeId, "menus", id));
-            toast("ลบเมนูเรียบร้อย");
-          } catch (err) {
-            console.error(err);
-            toast("ลบเมนูไม่สำเร็จ: " + err.message);
-          }
+          await deleteDoc(doc(db, "stores", storeId, "menus", btnDel.dataset.del));
+          toast("ลบเมนูแล้ว");
           return;
         }
 
         if (btnEdit) {
-          const id = btnEdit.getAttribute("data-edit");
-          try {
-            const md = await getDoc(doc(db, "stores", storeId, "menus", id));
-            if (!md.exists()) return toast("ไม่พบเมนู");
+          const md = await getDoc(
+            doc(db, "stores", storeId, "menus", btnEdit.dataset.edit)
+          );
+          const m = md.data();
 
-            const m = md.data();
-            editingMenuId = id;
-            editName.value = m.name || "";
-            editPrice.value = m.price || 0;
-            editFile.value = "";
-            if (backdrop) backdrop.style.display = "block";
-            if (editModal) editModal.style.display = "block";
-          } catch (err) {
-            console.error(err);
-            toast("โหลดข้อมูลเมนูไม่สำเร็จ: " + err.message);
-          }
-          return;
+          editingMenuId = btnEdit.dataset.edit;
+          editName.value = m.name;
+          editPrice.value = m.price;
+          editFile.value = "";
+
+          backdrop.style.display = "block";
+          editModal.style.display = "block";
         }
       });
 
-      if (btnSaveMenu)
-        btnSaveMenu.onclick = async () => {
-          if (!editingMenuId) return;
-          try {
-            const name = editName.value.trim();
-            const price = Number(editPrice.value || 0);
-            if (!name) return toast("กรุณากรอกชื่อเมนู");
-            if (Number.isNaN(price) || price < 0)
-              return toast("กรุณากรอกราคาให้ถูกต้อง");
+      /* ====== บันทึกแก้ไข ====== */
+      btnSaveMenu.onclick = async () => {
+        const name = editName.value.trim();
+        const price = Number(editPrice.value || 0);
+        if (!name) return toast("กรุณากรอกชื่อเมนู");
 
-            const up = { name, price };
-            const file = editFile.files?.[0] || null;
-            if (file) {
-              if (file.size > 3 * 1024 * 1024)
-                return toast("ไฟล์รูปใหญ่เกิน 3MB");
-              const path = `stores/${storeId}/menus/${editingMenuId}/img_${Date.now()}_${file.name}`;
-              const r = sRef(storage, path);
-              await uploadBytes(r, file);
-              up.imageUrl = await getDownloadURL(r);
-            }
+        const up = { name, price };
+        const file = editFile.files?.[0];
 
-            await updateDoc(
-              doc(db, "stores", storeId, "menus", editingMenuId),
-              up
-            );
-            toast("อัปเดตเมนูเรียบร้อย");
-          } catch (err) {
-            console.error(err);
-            toast("อัปเดตเมนูไม่สำเร็จ: " + err.message);
-          } finally {
-            editingMenuId = null;
-            if (backdrop) backdrop.style.display = "none";
-            if (editModal) editModal.style.display = "none";
-          }
-        };
+        if (file) {
+          const path = `stores/${storeId}/menus/${editingMenuId}/${Date.now()}_${file.name}`;
+          const r = sRef(storage, path);
+          await uploadBytes(r, file);
+          up.imageUrl = await getDownloadURL(r);
+        }
 
-      if (btnCancelEdit)
-        btnCancelEdit.onclick = () => {
-          editingMenuId = null;
-          if (backdrop) backdrop.style.display = "none";
-          if (editModal) editModal.style.display = "none";
-        };
+        await updateDoc(
+          doc(db, "stores", storeId, "menus", editingMenuId),
+          up
+        );
+
+        editingMenuId = null;
+        backdrop.style.display = "none";
+        editModal.style.display = "none";
+        toast("อัปเดตเมนูแล้ว");
+      };
+
+      btnCancelEdit.onclick = () => {
+        editingMenuId = null;
+        backdrop.style.display = "none";
+        editModal.style.display = "none";
+      };
+
     } catch (e) {
-      console.error("view_store error:", e);
-      toast("โหลดหน้าจัดการเมนูไม่สำเร็จ: " + e.message);
+      console.error(e);
+      toast("โหลดหน้าจัดการเมนูไม่สำเร็จ");
     }
     return;
   }
+
 
   /* ============= ORDERS ============= */
   if (page === "orders") {
@@ -1054,11 +1141,10 @@ onAuthStateChanged(auth, async (user) => {
           .map((i) => `${i.name} x${i.qty}`)
           .join(", ");
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${when.toLocaleString()}</td><td>${
-          d.customerName || "-"
-        }</td><td>${itemsStr}</td><td>${Number(
-          total
-        ).toLocaleString()} บาท</td><td>${d.status || "pending"}</td>`;
+        tr.innerHTML = `<td>${when.toLocaleString()}</td><td>${d.customerName || "-"
+          }</td><td>${itemsStr}</td><td>${Number(
+            total
+          ).toLocaleString()} บาท</td><td>${d.status || "pending"}</td>`;
         tbody.appendChild(tr);
       });
     });
@@ -1087,15 +1173,13 @@ onAuthStateChanged(auth, async (user) => {
         card.innerHTML = `
           <div class="store-header">
             <div>
-              <div class="menu-title" style="font-size:18px">${
-                d.name || "(ไม่มีชื่อร้าน)"
-              }</div>
+              <div class="menu-title" style="font-size:18px">${d.name || "(ไม่มีชื่อร้าน)"
+          }</div>
               <div class="muted">Owner UID: ${d.ownerUid || "-"}</div>
               <div class="muted">Store ID: ${s.id}</div>
             </div>
-            <div class="pill ${d.isBanned ? "ban" : "ok"}">${
-          d.isBanned ? "ถูกแบน" : "ปกติ"
-        }</div>
+            <div class="pill ${d.isBanned ? "ban" : "ok"}">${d.isBanned ? "ถูกแบน" : "ปกติ"
+          }</div>
           </div>`;
         grid.appendChild(card);
       });
@@ -1106,17 +1190,16 @@ onAuthStateChanged(auth, async (user) => {
   /* ============= ADMIN PROFILE ============= */
   if (page === "admin_profile") {
     const u = await userDoc(user.uid);
+
     const el = (id, v) => {
       const x = document.getElementById(id);
       if (x) x.textContent = v;
     };
-    const phoneText = u?.phone || user.phoneNumber || "-";
-    el("profEmail", phoneText);
-    el("profName", user.displayName || u?.displayName || "-");
 
-    // สิทธิ์/บทบาท (ถ้า super ให้แสดงเป็น "แอดมินใหญ่")
-    const roleText = u?.role === "super" ? "แอดมินใหญ่" : u?.role || "-";
-    el("profRole", roleText);
+    // ===== ข้อมูลผู้ใช้ =====
+    el("profEmail", u?.phone || user.phoneNumber || "-");
+    el("profName", user.displayName || u?.displayName || "-");
+    el("profRole", u?.role === "super" ? "แอดมินใหญ่" : u?.role || "-");
 
     const shopTypeToLabelLocal = (v) => {
       if (v === "drink") return "ร้านเครื่องดื่ม";
@@ -1130,17 +1213,20 @@ onAuthStateChanged(auth, async (user) => {
     const typeEl = document.getElementById("profStoreType");
     const descEl = document.getElementById("profStoreDesc");
 
-    try {
-      let storeId = u?.storeId || null;
+    const statusBadge = document.getElementById("storeStatusBadge");
+    const btnEditStore = document.getElementById("btnEditStore");
+    const btnManageMenu = document.getElementById("btnManageMenu");
 
+    try {
+      // ===== หา store =====
       let storeSnap = null;
-      if (storeId) {
-        const sref = doc(db, "stores", storeId);
+
+      if (u?.storeId) {
+        const sref = doc(db, "stores", u.storeId);
         const sdoc = await getDoc(sref);
-        if (sdoc.exists()) {
-          storeSnap = sdoc;
-        }
+        if (sdoc.exists()) storeSnap = sdoc;
       }
+
       if (!storeSnap) {
         const qy = query(
           collection(db, "stores"),
@@ -1158,20 +1244,49 @@ onAuthStateChanged(auth, async (user) => {
       }
 
       const d = storeSnap.data();
-      if (nameEl) nameEl.textContent = d?.name || "-";
+
+      // ===== แสดงข้อมูลร้าน =====
+      if (nameEl) nameEl.textContent = d.name || "-";
       if (typeEl)
-        // ★ ใช้ category ก่อน ถ้าไม่มีค่อยแปลงจาก shopType
         typeEl.textContent =
-          d?.category || shopTypeToLabelLocal(d?.shopType || "food");
-      if (descEl) descEl.textContent = d?.description || "-";
+          d.category || shopTypeToLabelLocal(d.shopType || "food");
+      if (descEl) descEl.textContent = d.description || "-";
+
+      // ===== สถานะร้าน =====
+      if (statusBadge) {
+        statusBadge.classList.remove(
+          "hidden",
+          "status-pending",
+          "status-approved",
+          "status-banned"
+        );
+
+        if (d.isBanned) {
+          statusBadge.textContent = "🚫 ถูกแบน";
+          statusBadge.classList.add("status-banned");
+        } else if (d.approvalStatus !== "approved") {
+          statusBadge.textContent = "⏳ กำลังตรวจสอบ";
+          statusBadge.classList.add("status-pending");
+        } else {
+          statusBadge.textContent = "✅ อนุมัติแล้ว";
+          statusBadge.classList.add("status-approved");
+        }
+      }
+
+      // ===== ล็อกปุ่มถ้ายังไม่ผ่าน =====
+      const canManage = !d.isBanned && d.approvalStatus === "approved";
+
+      if (btnEditStore) btnEditStore.disabled = !canManage;
+      if (btnManageMenu) btnManageMenu.disabled = !canManage;
 
       if (noBox) noBox.style.display = "none";
       if (box) box.style.display = "block";
     } catch (e) {
-      console.warn("load admin_profile store failed:", e);
+      console.warn("admin_profile error:", e);
       if (noBox) noBox.style.display = "block";
       if (box) box.style.display = "none";
     }
+
     return;
   }
 });

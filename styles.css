@@ -139,6 +139,19 @@ select:focus {
   transition: .15s;
   font-weight: 600;
 }
+.shop-type-option {
+  display: inline-flex;        /* เรียงแนวนอน */
+  align-items: center;         /* จัดตรงกลางแนวตั้ง */
+  gap: 8px;                    /* เว้นช่องว่างระหว่างปุ่มกับตัวหนังสือ */
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.shop-type-option input[type="radio"] {
+  margin: 0;                   /* ตัด margin เริ่มต้นของ radio ออก */
+}
+
+
 
 .btn:hover { background: #f3f4f6; }
 .btn.primary { background: var(--primary); color: #fff; border-color: transparent; }
