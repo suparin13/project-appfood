@@ -50,7 +50,6 @@
     <div class="card">
       <div class="section-header">
         <h3 style="margin:0">รายการคำสั่งซื้อ</h3>
-        <button id="btnDemoOrder" class="btn">+ สร้างออเดอร์ตัวอย่าง</button>
       </div>
 
       <div class="table-wrap">

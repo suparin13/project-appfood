@@ -1,6 +1,7 @@
 <?php ?>
 <!doctype html>
 <html lang="th">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -9,7 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet" />
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: 'Kanit', system-ui, Arial;
@@ -18,19 +22,56 @@
     }
 
     .nav {
-      position: sticky; top: 0; z-index: 5;
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 14px; background: #fff; border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
     }
-    .brand { display: flex; gap: 10px; align-items: center; }
-    .brand-title { font-weight: 700; }
-    .brand-sub { font-size: 12px; color: #6b7280; }
-    .muted { color: #6b7280; }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
-    .hero { background: #fff; border-bottom: 1px solid #e5e7eb; }
-    .hero .hero-content { max-width: 1100px; margin: 0 auto; padding: 16px; }
-    .hero h1 { margin: 0 0 4px; }
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .brand-title {
+      font-weight: 700;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .muted {
+      color: #6b7280;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .hero {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .hero .hero-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .hero h1 {
+      margin: 0 0 4px;
+    }
 
     .card {
       background: #fff;
@@ -47,12 +88,32 @@
       font-weight: 700;
       font-size: 14px;
     }
-    .badge.pending  { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
-    .badge.ok       { background:#dcfce7; color:#166534; border:1px solid #86efac; }
-    .badge.ban      { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+
+    .badge.pending {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .badge.ok {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .badge.ban {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
 
     /* ===== table ===== */
-    .tbl { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+    .tbl {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+
     .tbl th {
       background: #e5e7eb;
       padding: 10px 12px;
@@ -60,6 +121,7 @@
       font-size: 14px;
       text-align: center;
     }
+
     .tbl td {
       background: #fff;
       border: 1px solid #e5e7eb;
@@ -69,7 +131,8 @@
     }
 
     .avatar {
-      width: 84px; height: 84px;
+      width: 84px;
+      height: 84px;
       border-radius: 50%;
       object-fit: cover;
       border: 1px solid #e5e7eb;
@@ -84,19 +147,52 @@
       cursor: pointer;
       font-size: 14px;
     }
-    .btn.nav        { border: 1px solid #e5e7eb; background: #fff; }
-    .btn.nav-danger { background: #fee2e2; color: #b91c1c; }
 
-    .btn.edit   { background: #f59e0b; color: #fff; }
-    .btn.menu   { background: #3b82f6; color: #fff; }
-    .btn.orders { background: #10b981; color: #fff; }
+    .btn.nav {
+      border: 1px solid #e5e7eb;
+      background: #fff;
+    }
+
+    .btn.nav-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .btn.edit {
+      background: #f59e0b;
+      color: #fff;
+    }
+
+    .btn.menu {
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    .btn.orders {
+      background: #10b981;
+      color: #fff;
+    }
 
     /* admin only */
-    .btn.approve { background:#16a34a; color:#fff; }
-    .btn.ban     { background:#ef4444; color:#fff; }
-    .btn.unban   { background:#10b981; color:#fff; }
+    .btn.approve {
+      background: #16a34a;
+      color: #fff;
+    }
 
-    .btn[disabled] { opacity:.5; cursor:not-allowed; }
+    .btn.ban {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .btn.unban {
+      background: #10b981;
+      color: #fff;
+    }
+
+    .btn[disabled] {
+      opacity: .5;
+      cursor: not-allowed;
+    }
 
     .tbl td:last-child {
       display: flex;
@@ -135,6 +231,7 @@
 
   <section class="container">
     <div class="card">
+      <h3 style="margin-top:30px">รายชื่อร้านค้า</h3>
       <table class="tbl">
         <thead>
           <tr>
@@ -145,6 +242,8 @@
             <th style="width:18%">การจัดการ</th>
           </tr>
         </thead>
+
+
         <tbody id="storesBody">
           <tr>
             <td colspan="5" class="muted" style="background:transparent;border:0">
@@ -153,10 +252,32 @@
           </tr>
         </tbody>
       </table>
+      <div id="ridersSection" style="display:none;">
+
+        <h3>รายชื่อไรเดอร์</h3>
+
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>ชื่อ</th>
+              <th>เบอร์</th>
+              <th>สถานะ</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="ridersBody">
+            <tr>
+              <td colspan="4">กำลังโหลดข้อมูลไรเดอร์...</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
     </div>
   </section>
 
   <script src="firebase-config.js"></script>
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

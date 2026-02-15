@@ -227,7 +227,7 @@ onAuthStateChanged(auth, async (user) => {
 
         show(els.loginOtpGroup);
         toast(
-          "ส่งรหัส OTP แล้ว (ถ้าใช้เบอร์ทดสอบ ให้ใส่รหัส test ที่ตั้งไว้ใน Console)"
+          "ระบบส่งรหัส OTP แล้วค่ะ"
         );
       } catch (e) {
         console.error(e);
@@ -441,6 +441,54 @@ onAuthStateChanged(auth, async (user) => {
   await kickIfBanned(user);
   const me = await userDoc(user.uid);
 
+  /* ================== CHECK APPROVAL STATUS ================== */
+
+  // ❗ ไม่ต้องตรวจหน้า login
+  if (page !== "login" && me?.role !== "super") {
+
+    // ===== ตรวจร้าน =====
+    if (me?.role === "store") {
+
+      const qy = query(
+        collection(db, "stores"),
+        where("ownerUid", "==", user.uid),
+        limit(1)
+      );
+
+      const snap = await getDocs(qy);
+
+      if (!snap.empty) {
+        const storeData = snap.docs[0].data();
+
+        if (storeData.approvalStatus === "pending") {
+          alert("ร้านของคุณกำลังรอการอนุมัติ");
+          await signOut(auth);
+          go("login.php");
+          return;
+        }
+      }
+    }
+
+    // ===== ตรวจไรเดอร์ =====
+    if (me?.role === "rider") {
+
+      const riderRef = doc(db, "riders", user.uid);
+      const riderSnap = await getDoc(riderRef);
+
+      if (riderSnap.exists()) {
+        const riderData = riderSnap.data();
+
+        if (riderData.approvalStatus === "pending") {
+          alert("บัญชีไรเดอร์ของคุณกำลังรอการอนุมัติ");
+          await signOut(auth);
+          go("login.php");
+          return;
+        }
+      }
+    }
+  }
+
+
   /* ================== DASHBOARD PAGE ================== */
   if (page === "dashboard" && user) {
     const userEmailEl2 = document.getElementById("userEmail");
@@ -485,7 +533,13 @@ onAuthStateChanged(auth, async (user) => {
         d.category ||
         shopTypeToLabelLocal(d.shopType || me?.preferredShopType || "food");
 
-      const when = fmtDate(d.createdAt);
+      const status =
+        d.isBanned
+          ? "🚫 ถูกแบน"
+          : d.approvalStatus === "approved"
+            ? "✅ อนุมัติแล้ว"
+            : "⏳ รออนุมัติ";
+
 
       const imgCell = `
         <div class="img-cell">
@@ -542,7 +596,7 @@ onAuthStateChanged(auth, async (user) => {
     <td>${d.name || "-"}</td>
     <td>${cat}</td>
     <td>${imgCell}</td>
-    <td>${when}</td>
+    <td>${status}</td>
     <td>${manageCol}</td>
   </tr>
 `};
@@ -552,6 +606,9 @@ onAuthStateChanged(auth, async (user) => {
       // ---------- มุมมองแอดมินใหญ่ ----------
       if (me.role === "super") {
         roleBadge.textContent = "คุณคือ: แอดมินใหญ่";
+        const ridersSection = document.getElementById("ridersSection");
+        if (ridersSection) ridersSection.style.display = "block";
+
 
         const qy = query(collection(db, "stores")); // ไม่ orderBy เพื่อเลี่ยง index
         onSnapshot(qy, async (snap) => {
@@ -570,6 +627,107 @@ onAuthStateChanged(auth, async (user) => {
           );
           tbody.innerHTML = rows.join("");
         });
+        /* ================= RIDERS TABLE ================= */
+
+        const ridersBody = document.getElementById("ridersBody");
+
+        if (ridersBody) {
+
+          const riderQuery = query(collection(db, "riders"));
+
+          onSnapshot(riderQuery, (snap) => {
+
+            ridersBody.innerHTML = "";
+
+            if (snap.empty) {
+              ridersBody.innerHTML =
+                `<tr><td colspan="4">ยังไม่มีไรเดอร์</td></tr>`;
+              return;
+            }
+
+            snap.forEach((docSnap) => {
+
+              const d = docSnap.data();
+              const id = docSnap.id;
+
+              const status =
+                d.isBanned
+                  ? "🚫 ถูกแบน"
+                  : d.approvalStatus === "approved"
+                    ? "✅ อนุมัติแล้ว"
+                    : "⏳ รออนุมัติ";
+
+              const approveBtn =
+                d.approvalStatus !== "approved"
+                  ? `<button class="btn approve"
+              data-act="approveRider"
+              data-id="${id}">
+              อนุมัติ
+            </button>`
+                  : "";
+
+              const banBtn = `
+        <button class="btn ${d.isBanned ? "unban" : "ban"}"
+          data-act="toggleRiderBan"
+          data-id="${id}"
+          data-banned="${d.isBanned ? 1 : 0}">
+          ${d.isBanned ? "ปลดแบน" : "แบนไรเดอร์"}
+        </button>
+      `;
+
+              const tr = document.createElement("tr");
+
+              tr.innerHTML = `
+        <td>${d.name || "-"}</td>
+        <td>${d.phone || "-"}</td>
+        <td>${status}</td>
+        <td>${approveBtn} ${banBtn}</td>
+      `;
+
+              ridersBody.appendChild(tr);
+
+            });
+
+          });
+
+          // ===== EVENT CLICK =====
+
+          ridersBody.addEventListener("click", async (e) => {
+
+            // อนุมัติไรเดอร์
+            const approveBtn = e.target.closest('[data-act="approveRider"]');
+            if (approveBtn) {
+
+              await updateDoc(doc(db, "riders", approveBtn.dataset.id), {
+                approvalStatus: "approved",
+                approvedAt: serverTimestamp(),
+                approvedBy: auth.currentUser.uid,
+              });
+
+              alert("อนุมัติไรเดอร์แล้ว");
+              return;
+            }
+
+            // แบน / ปลดแบน
+            const banBtn = e.target.closest('[data-act="toggleRiderBan"]');
+            if (banBtn) {
+
+              const id = banBtn.dataset.id;
+              const banned = banBtn.dataset.banned === "1";
+
+              await updateDoc(doc(db, "riders", id), {
+                isBanned: !banned,
+              });
+
+              alert(banned ? "ปลดแบนไรเดอร์แล้ว" : "แบนไรเดอร์แล้ว");
+              return;
+            }
+
+          });
+
+        }
+
+
 
         // แบน/ปลดแบน
         tbody.addEventListener("click", async (e) => {
@@ -609,6 +767,8 @@ onAuthStateChanged(auth, async (user) => {
         });
         // ---------- มุมมองเจ้าของร้าน ----------
       } else {
+        const ridersSection = document.getElementById("ridersSection");
+        if (ridersSection) ridersSection.style.display = "none";
         // หา/สร้างร้านของ owner (ไม่ orderBy/ไม่ต้องทำ index)
         const qy = query(
           collection(db, "stores"),
@@ -1104,52 +1264,74 @@ onAuthStateChanged(auth, async (user) => {
 
 
   /* ============= ORDERS ============= */
-  if (page === "orders") {
-    const qy = query(
-      collection(db, "stores"),
-      where("ownerUid", "==", user.uid),
-      limit(1)
-    );
-    const snap = await getDocs(qy);
-    if (snap.empty) {
-      const n = document.getElementById("noStore");
-      if (n) n.style.display = "block";
-      return;
-    }
-    const storeDoc = snap.docs[0];
+if (page === "orders") {
 
-    const tbody = document.getElementById("ordersBody");
-    const oq = query(
-      collection(db, "stores", storeDoc.id, "orders"),
-      orderBy("createdAt", "desc")
-    );
-    onSnapshot(oq, (osnap) => {
-      tbody.innerHTML = "";
-      if (osnap.empty) {
-        tbody.innerHTML =
-          '<tr><td colspan="5" class="muted">ยังไม่มีออเดอร์</td></tr>';
-        return;
-      }
-      osnap.forEach((o) => {
-        const d = o.data();
-        const when = d.createdAt?.toDate ? d.createdAt.toDate() : new Date();
-        const total = (d.items || []).reduce(
-          (s, i) => s + i.price * i.qty,
-          0
-        );
-        const itemsStr = (d.items || [])
-          .map((i) => `${i.name} x${i.qty}`)
-          .join(", ");
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${when.toLocaleString()}</td><td>${d.customerName || "-"
-          }</td><td>${itemsStr}</td><td>${Number(
-            total
-          ).toLocaleString()} บาท</td><td>${d.status || "pending"}</td>`;
-        tbody.appendChild(tr);
-      });
-    });
+  const tbody = document.getElementById("ordersBody");
+
+  const storeQuery = query(
+    collection(db, "stores"),
+    where("ownerUid", "==", user.uid),
+    limit(1)
+  );
+
+  const storeSnap = await getDocs(storeQuery);
+
+  if (storeSnap.empty) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="muted">ไม่พบร้านของคุณ</td></tr>';
     return;
   }
+
+  const storeId = storeSnap.docs[0].id;
+
+  const ordersQuery = query(
+    collection(db, "orders"),
+    where("storeId", "==", storeId),
+    orderBy("createdAt", "desc")
+  );
+
+  onSnapshot(ordersQuery, (snap) => {
+
+    tbody.innerHTML = "";
+
+    if (snap.empty) {
+      tbody.innerHTML =
+        '<tr><td colspan="5" class="muted">ยังไม่มีออเดอร์</td></tr>';
+      return;
+    }
+
+    snap.forEach((docSnap) => {
+
+      const d = docSnap.data();
+
+      const when = d.createdAt?.toDate
+        ? d.createdAt.toDate()
+        : new Date();
+
+      const itemsStr = (d.items || [])
+        .map(i => `${i.name} x${i.qty}`)
+        .join(", ");
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${when.toLocaleString()}</td>
+        <td>${d.fullname || "-"}</td>
+        <td>${itemsStr}</td>
+        <td>${Number(d.total || 0).toLocaleString()} บาท</td>
+        <td>${d.status || "-"}</td>
+      `;
+
+      tbody.appendChild(tr);
+
+    });
+
+  });
+
+  return;
+}
+
+
 
   /* ============= BAN STORE (หน้าเก่า) ============= */
   if (page === "ban_store") {
@@ -1289,4 +1471,31 @@ onAuthStateChanged(auth, async (user) => {
 
     return;
   }
+  if (me?.role === "rider") {
+
+    const riderRef = doc(db, "riders", user.uid);
+    const riderSnap = await getDoc(riderRef);
+
+    if (riderSnap.exists()) {
+      const riderData = riderSnap.data();
+
+      // 🚫 ถ้าโดนแบน
+      if (riderData.isBanned) {
+        alert("บัญชีไรเดอร์ของคุณถูกแบน");
+        await signOut(auth);
+        go("login.php");
+        return;
+      }
+
+      // ⏳ ยังไม่อนุมัติ
+      if (riderData.approvalStatus !== "approved") {
+        alert("บัญชีไรเดอร์ของคุณกำลังรอการอนุมัติ");
+        await signOut(auth);
+        go("login.php");
+        return;
+      }
+    }
+  }
+
+
 });
