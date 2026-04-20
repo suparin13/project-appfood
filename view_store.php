@@ -65,7 +65,6 @@
       <div class="logo">🍜</div>
       <div>
         <div class="brand-title">ระบบร้านอาหารชุมชน</div>
-        <div class="brand-sub">ใช้ง่าย • ตัวใหญ่</div>
       </div>
     </div>
     <div class="nav-actions">
@@ -79,8 +78,7 @@
     <div class="hero-content">
       <h1>เมนูของร้าน</h1>
       <p class="tips">
-        ใส่ชื่อ ราคา แล้ว “เลือกไฟล์รูป” หรือ “วางลิงก์รูป”
-        จากนั้นกด “เพิ่มเมนู”
+        ใส่ชื่อ ราคา แล้ว “เลือกไฟล์รูป” จากนั้นกด “เพิ่มเมนู”
       </p>
     </div>
   </header>

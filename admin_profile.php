@@ -49,7 +49,6 @@
       <div class="logo">🍜</div>
       <div>
         <div class="brand-title">ร้านอาหารหลายสาขา</div>
-        <div class="brand-sub">Firebase + PHP</div>
       </div>
     </div>
     <div class="nav-actions">

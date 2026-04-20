@@ -21,6 +21,70 @@
     th{text-align:left;background:#f9fafb;position:sticky;top:0}
     tr:nth-child(even) td{background:#fcfcfc}
     .muted{color:var(--muted)}
+    .order-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Kanit', sans-serif;
+  font-size: 16px;           /* ✅ กำหนดให้เท่ากันทั้งตาราง */
+}
+
+.order-table th {
+  background: #f3f4f6;
+  font-size: 15px;           /* หัวตารางใหญ่กว่าเล็กน้อย */
+  font-weight: 600;
+  padding: 14px 12px;
+  text-align: left;
+}
+
+.order-table td {
+  padding: 16px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+  font-size: 16px;           /* ✅ บังคับให้เท่ากัน */
+  font-weight: 400;          /* ✅ ปรับให้ปกติ */
+}
+
+.order-table tr:hover td {
+  background: #f9fafb;
+  transition: .2s;
+}
+
+/* ===== ลบความต่างของขนาด ===== */
+.order-id,
+.order-items,
+.muted {
+  font-size: 16px;           /* ✅ เท่ากันหมด */
+  font-weight: 400;
+}
+
+.order-id {
+  color: #888;
+  margin-bottom: 4px;
+}
+
+/* ===== Badge ===== */
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.badge-success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge-pending {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.badge-cancel {
+  background: #fee2e2;
+  color: #b91c1c;
+}
   </style>
 </head>
 <body data-page="orders">
@@ -29,7 +93,6 @@
       <div class="logo">🍜</div>
       <div>
         <div class="brand-title">ระบบร้านอาหารชุมชน</div>
-        <div class="brand-sub">ใช้ง่าย • ตัวใหญ่</div>
       </div>
     </div>
     <div class="nav-actions">
@@ -56,7 +119,7 @@
         <table class="table">
           <thead>
             <tr>
-              <th>เวลา</th>
+              <th>วันที่/เวลา</th>
               <th>ลูกค้า</th>
               <th>รายการ</th>
               <th>ราคารวม</th>

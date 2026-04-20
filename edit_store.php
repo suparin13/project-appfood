@@ -26,7 +26,6 @@
       <div class="logo">🍜</div>
       <div>
         <div class="brand-title">ระบบร้านอาหารชุมชน</div>
-        <div class="brand-sub">ใช้ง่าย • ตัวใหญ่</div>
       </div>
     </div>
     <div class="nav-actions">

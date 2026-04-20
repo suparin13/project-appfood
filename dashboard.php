@@ -209,7 +209,6 @@
       <div>🍜</div>
       <div>
         <div class="brand-title">ระบบร้านอาหารชุมชน</div>
-        <div class="brand-sub">Firebase + PHP</div>
       </div>
     </div>
     <div>
@@ -262,7 +261,7 @@
               <th>ชื่อ</th>
               <th>เบอร์</th>
               <th>สถานะ</th>
-              <th>จัดการ</th>
+              <th>การจัดการ</th>
             </tr>
           </thead>
           <tbody id="ridersBody">

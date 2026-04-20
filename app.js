@@ -584,11 +584,11 @@ onAuthStateChanged(auth, async (user) => {
 
      <button class="btn menu"
        ${canManage ? "" : "disabled"}
-       data-act="menu">เพิ่มเมนู</button>
+       data-act="menu">แก้ไข/เพิ่มเมนู</button>
 
      <button class="btn orders"
        ${canManage ? "" : "disabled"}
-       data-act="orders">ดูคำสั่งซื้อ</button>
+       data-act="orders">ประวัติคำสั่งซื้อ</button>
     `;
 
       return `
@@ -1080,7 +1080,7 @@ onAuthStateChanged(auth, async (user) => {
               <div class="muted">${d.description || ""}</div>
             </div>
             <div class="pill ${d.isBanned ? "ban" : "ok"}">
-              ${d.isBanned ? "ถูกแบน" : "ปกติ"}
+              ${d.isBanned ? "สถานะถูกแบน" : "สถานะปกติ"}
             </div>
           </div>
         `;
@@ -1264,72 +1264,117 @@ onAuthStateChanged(auth, async (user) => {
 
 
   /* ============= ORDERS ============= */
-if (page === "orders") {
+  if (page === "orders") {
 
-  const tbody = document.getElementById("ordersBody");
+    const tbody = document.getElementById("ordersBody");
 
-  const storeQuery = query(
-    collection(db, "stores"),
-    where("ownerUid", "==", user.uid),
-    limit(1)
-  );
+    const storeQuery = query(
+      collection(db, "stores"),
+      where("ownerUid", "==", user.uid),
+      limit(1)
+    );
 
-  const storeSnap = await getDocs(storeQuery);
+    const storeSnap = await getDocs(storeQuery);
 
-  if (storeSnap.empty) {
-    tbody.innerHTML =
-      '<tr><td colspan="5" class="muted">ไม่พบร้านของคุณ</td></tr>';
-    return;
-  }
-
-  const storeId = storeSnap.docs[0].id;
-
-  const ordersQuery = query(
-    collection(db, "orders"),
-    where("storeId", "==", storeId),
-    orderBy("createdAt", "desc")
-  );
-
-  onSnapshot(ordersQuery, (snap) => {
-
-    tbody.innerHTML = "";
-
-    if (snap.empty) {
+    if (storeSnap.empty) {
       tbody.innerHTML =
-        '<tr><td colspan="5" class="muted">ยังไม่มีออเดอร์</td></tr>';
+        '<tr><td colspan="5" class="muted">ไม่พบร้านของคุณ</td></tr>';
       return;
     }
 
-    snap.forEach((docSnap) => {
+    const storeId = storeSnap.docs[0].id;
 
-      const d = docSnap.data();
+    const ordersQuery = query(
+      collection(db, "orders"),
+      where("storeId", "==", storeId),
+      orderBy("createdAt", "desc")
+    );
 
-      const when = d.createdAt?.toDate
-        ? d.createdAt.toDate()
-        : new Date();
+    onSnapshot(ordersQuery, async (snap) => {
 
-      const itemsStr = (d.items || [])
-        .map(i => `${i.name} x${i.qty}`)
-        .join(", ");
+      tbody.innerHTML = "";
 
-      const tr = document.createElement("tr");
+      if (snap.empty) {
+        tbody.innerHTML =
+          '<tr><td colspan="5" class="muted">ยังไม่มีออเดอร์</td></tr>';
+        return;
+      }
 
-      tr.innerHTML = `
-        <td>${when.toLocaleString()}</td>
-        <td>${d.fullname || "-"}</td>
-        <td>${itemsStr}</td>
-        <td>${Number(d.total || 0).toLocaleString()} บาท</td>
-        <td>${d.status || "-"}</td>
+      for (const docSnap of snap.docs) {
+
+        const d = docSnap.data();
+
+        const when = d.createdAt?.toDate
+          ? d.createdAt.toDate()
+          : new Date();
+
+        const formattedTime = when.toLocaleString("th-TH", {
+          dateStyle: "short",
+          timeStyle: "short"
+        });
+
+        /* 🔥 โหลด items subcollection */
+        const itemsSnap = await getDocs(
+          collection(db, "orders", docSnap.id, "items")
+        );
+
+        let itemsStr = "";
+
+        if (!itemsSnap.empty) {
+          itemsStr = itemsSnap.docs
+            .map(i => {
+              const item = i.data();
+              return `• ${item.name} x${item.qty}`;
+            })
+            .join("<br>");
+        } else {
+          itemsStr = "-";
+        }
+
+        /* ===== STATUS BADGE ===== */
+        let statusBadge = `<span class="badge badge-pending">รอดำเนินการ</span>`;
+
+        if (d.status === "success") {
+          statusBadge = `<span class="badge badge-success">สำเร็จ</span>`;
+        } else if (d.status === "cancelled") {
+          statusBadge = `<span class="badge badge-cancel">ยกเลิก</span>`;
+        }
+
+        const shortId = docSnap.id.slice(-6).toUpperCase();
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+        <td>
+          <div class="order-id">#${shortId}</div>
+          ${formattedTime}
+        </td>
+
+        <td>
+  ${d.fullname || "-"}
+  <div class="muted">${d.phone || ""}</div>
+</td>
+
+        <td class="order-items">
+          ${itemsStr}
+        </td>
+
+        <td>
+  ${Number(d.total || 0).toLocaleString()} บาท
+</td>
+
+        <td>
+          ${statusBadge}
+        </td>
       `;
 
-      tbody.appendChild(tr);
+        tbody.appendChild(tr);
+      }
 
     });
 
-  });
-
-  return;
-}
+    return;
+  }
 
 
 
